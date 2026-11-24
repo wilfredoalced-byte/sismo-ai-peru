@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SENATI | SISMO AI PERÚ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌎</text></svg>">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+<body>
+<div class="app">
+  <!-- ═════════════ ENCABEZADO + NAVEGACIÓN SUPERIOR ═════════════ -->
+  <header class="barra">
+    <div class="barra-sup">
+      <div class="marca">
+        <div class="logo">
+          <svg viewBox="0 0 48 48"><path d="M4 30 L14 30 18 20 22 38 27 10 31 34 34 26 44 26" fill="none" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <h1>SISMO <span>AI</span> PERÚ</h1>
+          <p>Análisis y estimación de intensidad sísmica con KNN · SENATI</p>
+        </div>
+      </div>
+      <div class="estado">
+        <span class="chip-estado"><i class="punto"></i>Fuente: Instituto Geofísico del Perú</span>
+        <span class="chip-estado claro">Corte de datos: <b id="fechaCorte">—</b></span>
+        <span class="chip-estado claro">📍 Huánuco · Perú</span>
+      </div>
+    </div>
+    <nav class="menu">
+      <a data-pag="dashboard" class="activo">Dashboard</a>
+      <a data-pag="analisis">Análisis KNN</a>
+      <a data-pag="simulador">Simulador de Sismo</a>
+      <a data-pag="mapa">Mapa de Eventos</a>
+      <a data-pag="dataset">Dataset</a>
+      <a data-pag="evaluacion">Evaluación del Modelo</a>
+      <a data-pag="reportes">Reportes</a>
+      <a data-pag="ayuda">Ayuda</a>
+    </nav>
+  </header>
+
+  <main class="contenido">
+    <!-- ───────────── DASHBOARD ───────────── -->
+    <section class="pagina visible" id="pag-dashboard">
+      <div class="kpis">
+        <div class="kpi k1"><span class="ico">〰</span><div><small>Total de eventos</small><b id="kTotal">—</b><em>Registros IGP <span id="kPeriodo"></span></em></div></div>
+        <div class="kpi k2"><span class="ico">◉</span><div><small>Magnitud promedio</small><b id="kMag">—</b><em>Escala reportada por IGP</em></div></div>
+        <div class="kpi k3"><span class="ico">⇣</span><div><small>Profundidad promedio</small><b id="kProf">—</b><em>Foco sísmico</em></div></div>
+        <div class="kpi k4"><span class="ico">⌖</span><div><small>Regiones analizadas</small><b id="kReg">—</b><em>Departamentos con epicentros</em></div></div>
+      </div>
+
+      <div class="fila-2 inv">
+        <div class="tarjeta">
+          <h3>Simulador de Intensidad Sísmica (KNN)</h3>
+          <div class="sim-dash">
+            <div class="form">
+              <label>Localidad (capital)<select id="dLoc"></select></label>
+              <label>Magnitud (Mw)<input id="dMag" type="number" step="0.1" min="3" max="9.5" value="6.5"></label>
+              <label>Profundidad (km)<input id="dProf" type="number" min="0" max="700" value="35"></label>
+              <label>Distancia al epicentro (km)<input id="dDist" type="number" min="0" max="1000" value="20"></label>
+              <label>K (vecinos)<select id="dK"></select></label>
+              <button id="dBtn" class="btn">▶ Estimar Intensidad</button>
+            </div>
+            <div class="resultado">
+              <small>Resultado del Modelo</small>
+              <div class="caja-res" id="dRes"><small>Intensidad estimada</small><b>—</b></div>
+              <small>Probabilidad por clase</small>
+              <div id="dProbs" class="probs"></div>
+            </div>
+          </div>
+          <p class="error" id="dErr"></p>
+        </div>
+        <div class="tarjeta">
+          <h3>Mapa de Eventos Sísmicos del Perú <small>(M ≥ 5.5 · 1960–2026)</small></h3>
+          <div id="mapaDash" class="mapa"></div>
+        </div>
+      </div>
+
+      <div class="fila-4">
+        <div class="tarjeta"><h3>Distribución de Eventos por Magnitud</h3><div class="graf"><canvas id="gDona"></canvas></div></div>
+        <div class="tarjeta"><h3>Eventos por Departamento (Top 5)</h3><div class="graf"><canvas id="gTop"></canvas></div></div>
+        <div class="tarjeta"><h3>Matriz de Confusión (KNN)</h3><div id="mcDash" class="matriz"></div></div>
+        <div class="tarjeta"><h3>Rendimiento del Modelo</h3><div id="rendDash" class="rend"></div></div>
+      </div>
+    </section>
+
+    <!-- ───────────── ANÁLISIS KNN ───────────── -->
+    <section class="pagina" id="pag-analisis">
+      <div class="fila-2">
+        <div class="tarjeta">
+          <h3>¿Cómo funciona KNN en SISMO AI?</h3>
+          <ol class="pasos">
+            <li><b>Variables de entrada:</b> magnitud, profundidad focal y distancia epicentral.</li>
+            <li><b>Escalado:</b> <code>StandardScaler</code> lleva las tres variables a la misma escala (media 0, desviación 1). Sin esto, la distancia en km dominaría sobre la magnitud.</li>
+            <li><b>Vecinos:</b> se buscan los K registros más parecidos (distancia euclidiana).</li>
+            <li><b>Votación:</b> cada vecino vota por su clase de intensidad; gana la mayoría.</li>
+            <li><b>Clases:</b> I–IV (Baja), V–VI (Moderada), VII–XII (Fuerte), en la escala de Mercalli modificada.</li>
+          </ol>
+          <div id="infoSplit" class="nota"></div>
+        </div>
+        <div class="tarjeta">
+          <h3>Comparación de K · validación cruzada agrupada por evento</h3>
+          <div class="graf alto"><canvas id="gK"></canvas></div>
+          <div id="tablaK"></div>
+        </div>
+      </div>
+      <div class="tarjeta">
+        <h3>Datos de entrenamiento: magnitud vs. distancia epicentral</h3>
+        <div class="graf muy-alto"><canvas id="gDisp"></canvas></div>
+        <p class="nota">Cada punto es un registro evento-localidad. Se nota cómo la intensidad sube con la magnitud y baja con la distancia.</p>
+      </div>
+    </section>
+
+    <!-- ───────────── SIMULADOR ───────────── -->
+    <section class="pagina" id="pag-simulador">
+      <div class="fila-2">
+        <div class="tarjeta">
+          <h3>Parámetros del sismo hipotético</h3>
+          <p class="ayuda">Elige la localidad y <b>haz clic en el mapa</b> para ubicar el epicentro: la distancia se calcula sola. También puedes escribirla.</p>
+          <div class="form grid2">
+            <label>Localidad<select id="sLoc"></select></label>
+            <label>K (vecinos)<select id="sK"></select></label>
+            <label>Magnitud (Mw)<input id="sMag" type="number" step="0.1" min="3" max="9.5" value="7.0"></label>
+            <label>Profundidad (km)<input id="sProf" type="number" min="0" max="700" value="40"></label>
+            <label>Distancia al epicentro (km)<input id="sDist" type="number" step="0.1" min="0" max="1000" value="60"></label>
+            <label>Epicentro (lat, lon)<input id="sEpi" type="text" readonly placeholder="clic en el mapa"></label>
+          </div>
+          <button id="sBtn" class="btn">▶ Ejecutar clasificación KNN</button>
+          <p class="error" id="sErr"></p>
+          <div id="sMapa" class="mapa medio"></div>
+        </div>
+        <div class="tarjeta">
+          <h3>Resultado y votación de los vecinos</h3>
+          <div class="caja-res grande" id="sRes"><small>Intensidad estimada</small><b>—</b></div>
+          <div id="sAvisos"></div>
+          <div class="graf"><canvas id="gVotos"></canvas></div>
+          <h4>Los K vecinos más cercanos</h4>
+          <div class="tabla-scroll"><table id="sVecinos" class="tabla"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── MAPA ───────────── -->
+    <section class="pagina" id="pag-mapa">
+      <div class="tarjeta">
+        <div class="filtros">
+          <label>Magnitud mínima<input id="mMin" type="number" step="0.5" value="4.5"></label>
+          <label>Desde<input id="mDesde" type="number" value="1960"></label>
+          <label>Hasta<input id="mHasta" type="number" value="2026"></label>
+          <label>Departamento<select id="mDep"><option value="">Todos</option></select></label>
+          <button id="mBtn" class="btn">Filtrar</button>
+          <span id="mTotal" class="chip"></span>
+        </div>
+        <div id="mapaGrande" class="mapa grande"></div>
+      </div>
+      <div class="fila-2">
+        <div class="tarjeta"><h3>Eventos por año</h3><div class="graf"><canvas id="gAnio"></canvas></div></div>
+        <div class="tarjeta"><h3>Magnitud vs. profundidad (eventos filtrados)</h3><div class="graf"><canvas id="gMagProf"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ───────────── DATASET ───────────── -->
+    <section class="pagina" id="pag-dataset">
+      <div class="tarjeta">
+        <h3>Dataset evento-localidad</h3>
+        <div id="dsResumen" class="kpis pequenos"></div>
+        <div class="filtros">
+          <label>Origen<select id="fOrigen"><option value="">Todos</option><option value="IGP">IGP observado</option><option value="Simulado">Simulado</option></select></label>
+          <label>Clase<select id="fClase"><option value="">Todas</option><option>I–IV</option><option>V–VI</option><option>VII–XII</option></select></label>
+          <label>Localidad<input id="fBuscar" placeholder="ej. Huánuco"></label>
+          <button id="fBtn" class="btn">Buscar</button>
+          <a class="btn sec" href="/descargar/dataset_final.csv">⬇ Descargar CSV</a>
+        </div>
+        <div class="tabla-scroll"><table id="tablaDs" class="tabla"></table></div>
+        <div class="paginador"><button id="pAnt" class="btn sec">◀</button><span id="pInfo"></span><button id="pSig" class="btn sec">▶</button></div>
+      </div>
+    </section>
+
+    <!-- ───────────── EVALUACIÓN ───────────── -->
+    <section class="pagina" id="pag-evaluacion">
+      <div class="kpis" id="evKpis"></div>
+      <div class="fila-2">
+        <div class="tarjeta"><h3>Matriz de confusión (conjunto de prueba)</h3><div id="mcGrande" class="matriz grande"></div></div>
+        <div class="tarjeta"><h3>Métricas por clase</h3><div class="graf alto"><canvas id="gClase"></canvas></div><div id="tablaClase"></div></div>
+      </div>
+      <div class="tarjeta nota" id="evNota"></div>
+    </section>
+
+    <!-- ───────────── REPORTES ───────────── -->
+    <section class="pagina" id="pag-reportes">
+      <div class="tarjeta">
+        <h3>Escenarios hipotéticos de demostración</h3>
+        <p class="ayuda">Tres sismos hipotéticos distintos, clasificados en vivo por el modelo KNN entrenado.</p>
+        <button id="rBtn" class="btn">▶ Ejecutar los 3 escenarios</button>
+        <button class="btn sec" onclick="window.print()">🖨 Imprimir reporte</button>
+        <div id="escenarios" class="escenarios"></div>
+      </div>
+    </section>
+
+    <!-- ───────────── AYUDA ───────────── -->
+    <section class="pagina" id="pag-ayuda">
+      <div class="tarjeta">
+        <h3>Preguntas de sustentación</h3>
+        <details open><summary>¿Por qué escalar las variables?</summary><p>KNN decide por distancias. La distancia epicentral (0–800 km) y la profundidad (0–700 km) tienen valores mucho más grandes que la magnitud (3–8.5). Sin escalar, la magnitud casi no influiría. <code>StandardScaler</code> deja todas con media 0 y desviación 1, para que pesen por igual.</p></details>
+        <details><summary>¿Cómo influye K?</summary><p>Con K pequeño el modelo es sensible al ruido (sobreajuste). Con K grande suaviza demasiado y favorece a la clase mayoritaria. Por eso se comparó K = 3, 5, 7 y 9 con validación cruzada y se eligió el de mejor F1-macro.</p></details>
+        <details><summary>¿Por qué separar por evento?</summary><p>Un mismo sismo genera varios registros (una fila por localidad), todos con la misma magnitud y profundidad. Si unos quedan en entrenamiento y otros en prueba, el modelo "ya conoce" ese sismo y las métricas salen infladas. Agrupar por evento evita esa fuga de información.</p></details>
+        <details><summary>¿Qué diferencia hay entre magnitud e intensidad?</summary><p>La <b>magnitud</b> mide la energía liberada en la fuente y es un único valor por sismo. La <b>intensidad</b> (Mercalli modificada, I–XII) mide los efectos observados en cada lugar: cambia según la distancia, la profundidad y el suelo.</p></details>
+        <details><summary>¿Por qué el modelo no puede anticipar un terremoto?</summary><p>El modelo solo estima la intensidad que tendría un sismo <i>ya definido</i> (magnitud, profundidad, distancia). No tiene información para saber cuándo, dónde ni de qué magnitud ocurrirá un sismo; eso no es posible con la ciencia actual.</p></details>
+      </div>
+      <div class="tarjeta">
+        <h3>Fuentes y limitaciones</h3>
+        <ul class="pasos">
+          <li><b>Catálogo sísmico del IGP</b> (1960–2026) y <b>reportes sísmicos del CENSIS-IGP</b> (2020–2026) con la intensidad observada por localidad. Se obtuvieron mediante la API pública <code>ultimosismo.igp.gob.pe</code> (copia en GitHub: ifc-chalaco/peru-seismic-dashboard).</li>
+          <li>Coordenadas de localidades: INEI (centros poblados y distritos).</li>
+          <li>Las clases V–VI y VII–XII se completaron con registros <b>simulados e identificados</b> (columna <code>origen</code>), generados con la ecuación de Allen, Wald y Worden (2012) calibrada con los datos del IGP.</li>
+        </ul>
+        <p class="aviso">⚠ Proyecto educativo. No predice fecha, ubicación ni magnitud de futuros terremotos. No es una alerta ni una herramienta oficial de seguridad. Fuente oficial: <a href="https://ultimosismo.igp.gob.pe/" target="_blank">IGP · CENSIS</a>.</p>
+      </div>
+    </section>
+
+    <footer class="pie">SENATI · Taller de Desarrollo de Aplicaciones con Machine Learning · SISMO AI PERÚ · Datos: Instituto Geofísico del Perú</footer>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

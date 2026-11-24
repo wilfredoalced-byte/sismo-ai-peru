@@ -1,0 +1,95 @@
+{
+  "mejor_k": 9,
+  "comparacion_k": [
+    {
+      "k": 3,
+      "exactitud_media": 0.9032547452547453,
+      "exactitud_std": 0.008551837196019688,
+      "f1_macro_media": 0.7929548734677333,
+      "f1_macro_std": 0.015946871342773852
+    },
+    {
+      "k": 5,
+      "exactitud_media": 0.9122527472527473,
+      "exactitud_std": 0.004114750336068202,
+      "f1_macro_media": 0.8120268899508487,
+      "f1_macro_std": 0.0070805025052661195
+    },
+    {
+      "k": 7,
+      "exactitud_media": 0.913852147852148,
+      "exactitud_std": 0.00395676761058086,
+      "f1_macro_media": 0.815836965397016,
+      "f1_macro_std": 0.008884287270369214
+    },
+    {
+      "k": 9,
+      "exactitud_media": 0.9146531468531467,
+      "exactitud_std": 0.005820173592281512,
+      "f1_macro_media": 0.8180472091419835,
+      "f1_macro_std": 0.013236663319285484
+    }
+  ],
+  "prueba": {
+    "exactitud": 0.9120443740095087,
+    "precision": 0.8059827575200166,
+    "recall": 0.8139688414497576,
+    "f1": 0.8098901189412405
+  },
+  "prueba_solo_igp": {
+    "exactitud": 0.9730312837108953,
+    "precision": 0.391727004558863,
+    "recall": 0.4597600872410033,
+    "f1": 0.4120904265055831
+  },
+  "n_prueba_igp": 927,
+  "matriz_confusion": [
+    [
+      898,
+      18,
+      1
+    ],
+    [
+      11,
+      113,
+      41
+    ],
+    [
+      0,
+      40,
+      140
+    ]
+  ],
+  "clases": [
+    "I–IV",
+    "V–VI",
+    "VII–XII"
+  ],
+  "por_clase": {
+    "I–IV": {
+      "precision": 0.9878987898789879,
+      "recall": 0.9792802617230099,
+      "f1-score": 0.9835706462212487,
+      "support": 917.0
+    },
+    "V–VI": {
+      "precision": 0.6608187134502924,
+      "recall": 0.6848484848484848,
+      "f1-score": 0.6726190476190477,
+      "support": 165.0
+    },
+    "VII–XII": {
+      "precision": 0.7692307692307693,
+      "recall": 0.7777777777777778,
+      "f1-score": 0.7734806629834254,
+      "support": 180.0
+    }
+  },
+  "n_train": 5003,
+  "n_test": 1262,
+  "n_eventos_train": 3769,
+  "n_eventos_test": 943,
+  "n_total": 6265,
+  "n_observados": 4544,
+  "n_simulados": 1721
+}
